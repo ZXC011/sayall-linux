@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=无线麦
+Name[zh_CN]=无线麦
+GenericName=语音输入
+Comment=小米蓝牙遥控器语音输入与按键映射
+Exec=sayall-gui
+Icon=app.sayall.Linux
+Terminal=false
+Categories=Utility;AudioVideo;
+Keywords=voice;mic;remote;sayall;语音;遥控器;
+StartupWMClass=app.sayall.Linux

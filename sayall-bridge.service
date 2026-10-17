@@ -1,0 +1,14 @@
+[Unit]
+Description=SayAll Linux bridge (Xiaomi remote -> vinput)
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/sayall-bridge run
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
