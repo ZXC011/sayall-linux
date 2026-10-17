@@ -69,8 +69,20 @@ sudo apt install python3-bleak python3-evdev
 
 ### 3. 安装本项目
 
+**方式 A：从 Release 安装 .deb（推荐）**
+
+```bash
+# 从 https://github.com/ZXC011/sayall-linux/releases 下载
+sudo apt install ./sayall-linux_0.1.0_all.deb
+systemctl --user enable --now sayall-bridge.service
+```
+
+**方式 B：源码安装**
+
 ```bash
 git clone https://github.com/ZXC011/sayall-linux.git
+# 国内网络可改用 SSH over 443：
+# git clone ssh://git@ssh.github.com:443/ZXC011/sayall-linux.git
 cd sayall-linux
 ./install.sh
 systemctl --user enable --now sayall-bridge.service
