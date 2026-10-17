@@ -6,6 +6,9 @@
 
 > 本项目是独立的 Linux 实现，参考了 [HD838A/remote-mic-app](https://github.com/HD838A/remote-mic-app)（macOS）与 [GetSayAll/remote-mic-app-windows](https://github.com/GetSayAll/remote-mic-app-windows)（Rust 核心）公开的 ATVV 协议资料，代码为原创。与上述项目作者无隶属关系。
 
+![状态页](docs/screenshot-status.png)
+![按键映射](docs/screenshot-mapping.png)
+
 ## 功能
 
 - **BLE / ATVV 直连**：不需要驱动、不需要改内核，BlueZ 即可

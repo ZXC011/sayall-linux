@@ -27,7 +27,6 @@ SERVICE = "sayall-bridge"
 # 常见按键：键码 -> 中文名
 KEY_LABELS = {
     63: "语音键",
-    191: "语音键（F20）",
     103: "方向上",
     108: "方向下",
     105: "方向左",
@@ -212,7 +211,7 @@ def normalize_key_name(name: str) -> str:
 
 
 class Window(Adw.ApplicationWindow):
-    def __init__(self, app: Adw.Application) -> None:
+    def __init__(self, app: Adw.Application, page: str | None = None) -> None:
         super().__init__(application=app, title="无线麦")
         self.set_default_size(860, 700)
 
@@ -244,12 +243,32 @@ class Window(Adw.ApplicationWindow):
         self.build_status_page()
         self.build_mapping_page()
         self.build_about_page()
+        if page:
+            self.stack.set_visible_child_name(page)
         self._gain_ready = False
         GLib.timeout_add(800, self._enable_gain)
         GLib.timeout_add(600, self.refresh_status)
 
     def _enable_gain(self) -> bool:
         self._gain_ready = True
+        return False
+
+    def capture(self, path: str) -> bool:
+        """把窗口内容渲染成 PNG（用于 README 截图）。"""
+        try:
+            width = self.get_width()
+            height = self.get_height()
+            paintable = Gtk.WidgetPaintable.new(self)
+            snapshot = Gtk.Snapshot()
+            paintable.snapshot(snapshot, width, height)
+            node = snapshot.to_node()
+            renderer = self.get_renderer()
+            texture = renderer.render_texture(node, None)
+            texture.save_to_png(path)
+            print(f"saved {path} ({width}x{height})")
+        except Exception as exc:
+            print("screenshot failed:", exc)
+        self.get_application().quit()
         return False
 
     # ------------------------------------------------------------ 状态页
@@ -373,12 +392,20 @@ class Window(Adw.ApplicationWindow):
         self.rows.clear()
 
         mapping = self.cfg.get("button_map", {}) or {}
-        for code in sorted(self.known_keys(), key=lambda c: (c != 63, c)):
+        order = [63, 28, 103, 108, 105, 106, 158, 172, 139, 163, 115, 114, 113, 116]
+
+        def sort_key(code: int) -> int:
+            try:
+                return order.index(code)
+            except ValueError:
+                return len(order) + code
+
+        for code in sorted(self.known_keys(), key=sort_key):
             name = self.known_keys()[code]
             action = mapping.get(str(code), "passthrough")
             row = Adw.ActionRow(title=key_label(code, name), subtitle=f"键码 {code} · {action_to_text(action, self.cfg)}")
 
-            if code in (63, 191):
+            if code == 63:
                 badge = Gtk.Label(label="语音输入")
                 badge.add_css_class("dim-label")
                 row.add_suffix(badge)
@@ -817,15 +844,27 @@ class Window(Adw.ApplicationWindow):
 
 
 class App(Adw.Application):
-    def __init__(self) -> None:
+    def __init__(self, screenshot: str | None = None, page: str | None = None) -> None:
         super().__init__(application_id="app.sayall.Linux")
         self.window = None
+        self.screenshot = screenshot
+        self.page = page
 
     def do_activate(self) -> None:
         if not self.window:
-            self.window = Window(self)
+            self.window = Window(self, page=self.page)
+        if self.screenshot:
+            self.window.set_default_size(900, 1000)
         self.window.present()
+        if self.screenshot:
+            GLib.timeout_add(900, self.window.capture, self.screenshot)
 
 
 if __name__ == "__main__":
-    sys.exit(App().run(sys.argv))
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--screenshot", metavar="PATH")
+    parser.add_argument("--page", choices=["status", "mapping", "about"])
+    args, _ = parser.parse_known_args()
+    sys.exit(App(screenshot=args.screenshot, page=args.page).run([sys.argv[0]]))

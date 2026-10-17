@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Byte-compile Python
+        run: python3 -m py_compile sayall_bridge.py sayall_gui.py
+      - name: Shell syntax
+        run: bash -n install.sh scripts/build-deb.sh
+      - name: Validate desktop entry
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq desktop-file-utils
+          desktop-file-validate app.sayall.Linux.desktop
