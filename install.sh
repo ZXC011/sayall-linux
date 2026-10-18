@@ -13,7 +13,7 @@ echo "==> 检查依赖"
 for pkg in python3-bleak python3-evdev python3-gi-cairo; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "缺少 $pkg，请先运行:"
-        echo "    sudo apt install -y python3-bleak python3-evdev"
+        echo "    sudo apt install -y python3-bleak python3-evdev python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 pipewire-bin wireplumber bluez libglib2.0-bin"
         exit 1
     fi
 done
@@ -26,6 +26,13 @@ gi.require_foreign("cairo")
 print("GTK4 + libadwaita + cairo OK")
 PY
 
+for cmd in wpctl pw-loopback pw-cat bluetoothctl systemctl busctl pgrep gio; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "缺少命令 $cmd（需要 pipewire-bin / wireplumber / bluez / systemd）"
+        exit 1
+    fi
+done
+
 echo "==> 安装到 $DEST"
 mkdir -p "$DEST" "$UNIT_DIR" "$APP_DIR"
 install -m 755 sayall_bridge.py "$DEST/sayall-bridge"
@@ -36,6 +43,9 @@ rm -f "$APP_DIR/sayall-linux.desktop"
 ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 mkdir -p "$ICON_DIR"
 install -m 644 sayall-icon.svg "$ICON_DIR/app.sayall.Linux.svg"
+DATA_DIR="$HOME/.local/share/sayall-linux"
+mkdir -p "$DATA_DIR"
+install -m 644 assets/remote-rc003.png "$DATA_DIR/remote-rc003.png"
 
 echo "==> 重新加载 systemd / 桌面数据库"
 systemctl --user daemon-reload
@@ -47,4 +57,5 @@ echo "  sayall-gui                               # 打开图形界面"
 echo "  systemctl --user enable --now sayall-bridge.service   # 开机自启并立即运行"
 echo "  journalctl --user -u sayall-bridge -f    # 查看日志"
 echo
-echo "首次使用前请确认遥控器已配对并连接（蓝牙设置里显示已连接）。"
+echo "首次使用：打开「无线麦」，按引导完成 Vokie 安装和遥控器配对。"
+echo "还没有 Vokie？下载地址：https://vokie.com/download.html"

@@ -57,6 +57,19 @@ VIRTUAL_SINK_NAME = "sayall-mic-sink"
 SAMPLE_RATE = 16000
 DEBUG = os.environ.get("SAYALL_DEBUG") == "1"
 
+# 手势时间窗口
+DOUBLE_MS = 300
+LONG_MS = 500
+
+
+def normalize_mapping(value) -> dict:
+    """把配置里的按键动作归一化为 {single/double/long: action}。"""
+    if isinstance(value, dict):
+        return {k: v for k, v in value.items() if isinstance(v, str) and v}
+    if isinstance(value, str) and value:
+        return {"single": value}
+    return {}
+
 KEY_F5 = 63
 KEY_F20 = 191
 KEY_REFRESH = 173
@@ -401,6 +414,10 @@ class RemoteHid:
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self.handled_keys: set[int] = set()
+        self.pending_single: dict[int, threading.Timer] = {}
+        self.press_times: dict[int, float] = {}
+        self.long_timers: dict[int, threading.Timer] = {}
+        self.long_fired: set[int] = set()
 
     @staticmethod
     def find_keyboard():
@@ -484,6 +501,70 @@ class RemoteHid:
                 pass
             self.dev = None
 
+    def _fire(self, code: int, action: str | None) -> None:
+        if not action:
+            return
+        if action == "passthrough":
+            self._emit_key(code)
+            return
+        if self.perform_action:
+            self.perform_action(action, code)
+
+    def _emit_key(self, code: int) -> None:
+        """手势按键的「透传」：把按键补发到虚拟键盘。"""
+        import evdev
+
+        if not self.ui:
+            return
+        try:
+            for value in (1, 0):
+                self.ui.write_event(evdev.InputEvent(0, 0, evdev.ecodes.EV_KEY, code, value))
+            self.ui.syn()
+        except Exception:
+            pass
+
+    def _long_press(self, code: int, gestures: dict) -> None:
+        if code not in self.press_times:
+            return
+        self.long_fired.add(code)
+        self._fire(code, gestures.get("long") or gestures.get("single"))
+
+    def _fire_single(self, code: int, gestures: dict) -> None:
+        self.pending_single.pop(code, None)
+        if code in self.long_fired:
+            self.long_fired.discard(code)
+            return
+        self._fire(code, gestures.get("single"))
+
+    def _handle_gesture(self, code: int, value: int, gestures: dict) -> None:
+        now = time.monotonic()
+        if value == 1:
+            pending = self.pending_single.pop(code, None)
+            if pending is not None:
+                pending.cancel()
+                self._fire(code, gestures.get("double") or gestures.get("single"))
+                return
+            self.press_times[code] = now
+            if gestures.get("long"):
+                timer = threading.Timer(LONG_MS / 1000, self._long_press, args=(code, gestures))
+                timer.daemon = True
+                self.long_timers[code] = timer
+                timer.start()
+        elif value == 0:
+            pressed = self.press_times.pop(code, None)
+            timer = self.long_timers.pop(code, None)
+            if timer:
+                timer.cancel()
+            if pressed is None:
+                return
+            if code in self.long_fired:
+                self.long_fired.discard(code)
+                return
+            single = threading.Timer(DOUBLE_MS / 1000, self._fire_single, args=(code, gestures))
+            single.daemon = True
+            self.pending_single[code] = single
+            single.start()
+
     def _supervise(self) -> None:
         while self.running:
             if not self._attach():
@@ -516,10 +597,19 @@ class RemoteHid:
                     continue
                 if code in SWALLOWED_KEYS:
                     continue
+                gestures = self.get_action(code) if self.get_action else {"single": "passthrough"}
+                if not isinstance(gestures, dict):
+                    gestures = {"single": gestures} if gestures else {}
+                if gestures.get("double") or gestures.get("long"):
+                    if event.value == 1:
+                        key_name = evdev.ecodes.KEY.get(code, str(code))
+                        self.log(f"按键 code={code} ({key_name})")
+                    self._handle_gesture(code, event.value, gestures)
+                    continue
+                action = gestures.get("single", "passthrough")
                 if event.value == 1:
                     key_name = evdev.ecodes.KEY.get(code, str(code))
                     self.log(f"按键 code={code} ({key_name})")
-                    action = self.get_action(code) if self.get_action else "passthrough"
                     if action and action != "passthrough":
                         self.handled_keys.add(code)
                         if self.perform_action:
@@ -969,7 +1059,7 @@ class Bridge:
             cfg["learn_request"] = False
             save_config(cfg)
         self.last_key = {"code": code, "name": evdev.ecodes.KEY.get(code, str(code))}
-        return self.button_map.get(str(code), "passthrough")
+        return normalize_mapping(self.button_map.get(str(code)))
 
     def _perform_action(self, action: str, code: int) -> None:
         try:
@@ -978,7 +1068,7 @@ class Bridge:
                 self.log(f"执行命令: {action[8:]}")
             elif action.startswith("app:"):
                 subprocess.Popen(
-                    ["gtk-launch", action[4:]],
+                    ["gio", "launch", action[4:]],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     start_new_session=True,

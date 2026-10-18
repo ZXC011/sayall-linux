@@ -17,8 +17,9 @@
 - **语音引擎可切换**
   - **Vokie**：注入 Vokie 的「按住说话」热键（支持组合键，含 Ctrl+Win 这类纯修饰键）
   - **自定义命令**：按下/松开时执行任意命令
-- **按键映射**：透传 / 禁用 / 启动应用 / 执行命令 / 发送按键组合
-- **图形界面**：GTK4 + libadwaita，状态、电平、增益、映射、学习按键
+- **按键映射**：每个按键支持单击 / 双击 / 长按；动作可选透传 / 禁用 / 启动应用 / 执行命令 / 发送按键组合
+- **图形界面**：GTK4 + libadwaita，状态、电平、增益、按键映射
+- **首次使用引导**：内置检查清单，引导安装 Vokie、配对遥控器、启动桥接、设置触发键
 - **自动恢复**：遥控器重连后自动重新抓取；开麦会话 60 秒超时自动续开
 
 ## 架构
@@ -39,15 +40,25 @@ Vokie / 其他语音输入软件 → 识别 → 粘贴到当前输入框
 ## 环境要求
 
 - Linux + PipeWire（已在 Ubuntu 26.04 / GNOME 50 / Wayland 上验证）
-- BlueZ（`bluetoothctl`）、`wmctrl`、`pw-loopback`、`pw-cat`
+- BlueZ（`bluetoothctl`）、PipeWire（`pw-loopback`、`pw-cat`、`pw-dump`）、WirePlumber（`wpctl`）
 - Python 3.10+
-- `python3-bleak`、`python3-evdev`、`python3-gi-cairo`
+- `python3-gi`、`python3-gi-cairo`、`python3-bleak`、`python3-evdev`
 - 图形界面需要 GTK4 + libadwaita（`gir1.2-gtk-4.0`、`gir1.2-adw-1`）
 - 语音软件：推荐 [Vokie](https://vokie.com/)（Linux 版）
 
 ## 安装
 
-### 1. 配对遥控器
+整个过程只需要三步：**装 Vokie（可选）→ 配对遥控器 → 装本项目的 .deb**。首次打开应用会弹出一个引导窗口，逐项检查并给出按钮。
+
+### 1. 安装 Vokie（语音引擎，推荐）
+
+1. 打开 [vokie.com/download.html](https://vokie.com/download.html)，下载 Linux 版并安装
+2. 安装后启动一次 Vokie，确认它能正常识别语音
+3. 记下它的「按住说话」快捷键（默认 `Ctrl+Win`，也可以稍后在「无线麦」里修改）
+
+> 不想用 Vokie 也可以：在应用里把语音引擎切换成「自定义命令」，按下/松开时执行任意命令。
+
+### 2. 配对遥控器
 
 1. 同时长按遥控器的「主页 + 菜单」键，直到指示灯闪烁
 2. 在系统蓝牙设置里连接 `MI RC` / `小米蓝牙语音遥控器`
@@ -61,21 +72,17 @@ bluetoothctl
 [bluetooth]# pair AA:BB:CC:DD:EE:FF
 ```
 
-### 2. 安装依赖
-
-```bash
-sudo apt install python3-bleak python3-evdev python3-gi-cairo
-```
-
 ### 3. 安装本项目
 
 **方式 A：从 Release 安装 .deb（推荐）**
 
 ```bash
 # 从 https://github.com/ZXC011/sayall-linux/releases 下载
-sudo apt install ./sayall-linux_0.2.0_all.deb
+sudo apt install ./sayall-linux_0.3.0_all.deb
 systemctl --user enable --now sayall-bridge.service
 ```
+
+`apt` 会自动安装包里的依赖，不需要手动装。**不要用 `dpkg -i`**（它不解析依赖）。
 
 **方式 B：源码安装**
 
@@ -88,7 +95,7 @@ cd sayall-linux
 systemctl --user enable --now sayall-bridge.service
 ```
 
-### 4. 打开界面
+### 4. 打开界面，跟着引导走
 
 应用列表里会出现 **无线麦**，或直接运行：
 
@@ -96,7 +103,20 @@ systemctl --user enable --now sayall-bridge.service
 sayall-gui
 ```
 
-### 5. 配置 Vokie（可选）
+首次启动会弹出「开始使用」引导，四步逐项检查：
+
+![首次使用引导](docs/screenshot-onboarding.png)
+
+| 步骤 | 引导里的按钮 |
+|---|---|
+| 安装 Vokie | 未安装 → 打开下载页；已安装 → 直接启动 |
+| 配对遥控器 | 打开系统蓝牙设置（已配对时显示「已配对」） |
+| 启动桥接服务 | 一键启动（运行中时显示「运行中」） |
+| 设置触发快捷键 | 录制 Vokie 的按住说话键 |
+
+引导可以随时从右上角 **☰ → 使用引导** 重新打开。全部显示绿点后，按住遥控器语音键说话即可。
+
+### 5. 检查 Vokie 热键（可选）
 
 - 在界面「语音输入 → 触发快捷键」里录制 Vokie 的按住说话键（例如 `F9` 或 `Ctrl+Win`）
 - 也可以直接使用 Vokie 的默认热键；桥接会自动读取 `~/.config/vokie/app-settings.json`
@@ -106,8 +126,9 @@ sayall-gui
 - **遥控器语音键**：按住说话，松开结束
 - **界面**
   - 状态页：连接状态、电量、麦克风电平、输入增益、触发快捷键
-  - 按键页：学习遥控器按键并分配动作
+  - 按键页：13 个遥控器按键的单击 / 双击 / 长按动作（语音键固定不可改）
   - 关于页：配置与状态文件位置
+- **右上角 ☰**：重新打开「使用引导」、完全退出（停止桥接并关闭 Vokie）
 
 ## 配置
 
@@ -121,7 +142,7 @@ sayall-gui
 | `voice_engine` | `vokie` 或 `custom` |
 | `voice_start_command` / `voice_stop_command` | 自定义引擎命令 |
 | `button_map` | `{"键码": "动作"}`，动作见下 |
-| `known_keys` | 已学习的按键 |
+| `known_keys` | 兼容旧配置的额外按键（一般不用改） |
 
 动作格式：
 
@@ -154,6 +175,7 @@ SAYALL_DEBUG=1 systemctl --user restart sayall-bridge
 - 参考项目：
   - [HD838A/remote-mic-app](https://github.com/HD838A/remote-mic-app)（macOS 版，GPL-3.0）
   - [GetSayAll/remote-mic-app-windows](https://github.com/GetSayAll/remote-mic-app-windows)（Rust 核心，GPL-3.0）
+- **素材与界面**：遥控器实拍图 `assets/remote-rc003.png` 与按键映射页布局来自 [GetSayAll/remote-mic-app-windows](https://github.com/GetSayAll/remote-mic-app-windows)（GPL-3.0），本项目按其 Vue / CSS 参数用 GTK4 重新实现
 
 ## 许可证
 
@@ -168,6 +190,7 @@ microphone and push-to-talk key for Linux. It connects over BLE using the ATVV
 protocol, decodes the remote's ADPCM audio into a PipeWire virtual microphone,
 swallows the remote's F5 voice key, and triggers a dictation app (Vokie by
 default) by injecting its push-to-talk hotkey. A GTK4 GUI provides status,
-gain control and per-button mappings.
+gain control, per-button mappings and a first-run guide for installing Vokie
+and pairing the remote.
 
 Licensed under GPL-3.0-only.

@@ -1,5 +1,5 @@
 [Unit]
-Description=SayAll Linux bridge (Xiaomi remote -> vinput)
+Description=SayAll Linux bridge (Xiaomi remote -> voice input)
 After=graphical-session.target pipewire.service
 PartOf=graphical-session.target
 
