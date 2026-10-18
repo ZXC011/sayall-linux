@@ -10,7 +10,7 @@ UNIT_DIR="$HOME/.config/systemd/user"
 APP_DIR="$HOME/.local/share/applications"
 
 echo "==> 检查依赖"
-for pkg in python3-bleak python3-evdev; do
+for pkg in python3-bleak python3-evdev python3-gi-cairo; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "缺少 $pkg，请先运行:"
         echo "    sudo apt install -y python3-bleak python3-evdev"
@@ -22,7 +22,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw  # noqa: F401
-print("GTK4 + libadwaita OK")
+gi.require_foreign("cairo")
+print("GTK4 + libadwaita + cairo OK")
 PY
 
 echo "==> 安装到 $DEST"

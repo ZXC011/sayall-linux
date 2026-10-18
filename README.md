@@ -41,7 +41,7 @@ Vokie / 其他语音输入软件 → 识别 → 粘贴到当前输入框
 - Linux + PipeWire（已在 Ubuntu 26.04 / GNOME 50 / Wayland 上验证）
 - BlueZ（`bluetoothctl`）、`wmctrl`、`pw-loopback`、`pw-cat`
 - Python 3.10+
-- `python3-bleak`、`python3-evdev`
+- `python3-bleak`、`python3-evdev`、`python3-gi-cairo`
 - 图形界面需要 GTK4 + libadwaita（`gir1.2-gtk-4.0`、`gir1.2-adw-1`）
 - 语音软件：推荐 [Vokie](https://vokie.com/)（Linux 版）
 
@@ -64,7 +64,7 @@ bluetoothctl
 ### 2. 安装依赖
 
 ```bash
-sudo apt install python3-bleak python3-evdev
+sudo apt install python3-bleak python3-evdev python3-gi-cairo
 ```
 
 ### 3. 安装本项目
@@ -73,7 +73,7 @@ sudo apt install python3-bleak python3-evdev
 
 ```bash
 # 从 https://github.com/ZXC011/sayall-linux/releases 下载
-sudo apt install ./sayall-linux_0.1.0_all.deb
+sudo apt install ./sayall-linux_0.2.0_all.deb
 systemctl --user enable --now sayall-bridge.service
 ```
 

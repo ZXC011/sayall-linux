@@ -34,7 +34,7 @@ Version: $VERSION
 Architecture: $ARCH
 Maintainer: ZXC011 <877815284@qq.com>
 Installed-Size: $SIZE
-Depends: python3 (>= 3.10), python3-bleak, python3-evdev, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, pipewire-bin, wmctrl, bluez
+Depends: python3 (>= 3.10), python3-bleak, python3-evdev, python3-gi, python3-gi-cairo, gir1.2-gtk-4.0, gir1.2-adw-1, pipewire-bin, wmctrl, bluez
 Recommends: vokie
 Section: utils
 Priority: optional
